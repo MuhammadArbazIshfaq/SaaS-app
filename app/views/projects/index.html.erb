@@ -1,0 +1,120 @@
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2>Projects</h2>
+      <p class="text-muted">Manage your organization's projects</p>
+    </div>
+    <div>
+      <% if @can_create_project %>
+        <%= link_to "New Project", new_project_path, class: "btn btn-primary" %>
+      <% else %>
+        <div class="text-center">
+          <p class="text-warning mb-2">
+            <i class="fas fa-lock"></i> 
+            You've reached your project limit (<%= current_user.organization.projects_limit %>)
+          </p>
+          <% if current_user.organization.free_plan? %>
+            <small class="text-muted">
+              Upgrade to Premium for unlimited projects
+            </small>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Organization Info -->
+  <div class="row mb-4">
+    <div class="col-md-12">
+      <div class="card bg-light">
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-3">
+              <strong>Organization:</strong><br>
+              <%= current_user.organization.name %>
+            </div>
+            <div class="col-md-3">
+              <strong>Plan:</strong><br>
+              <span class="badge bg-<%= current_user.organization.free_plan? ? 'secondary' : 'primary' %>">
+                <%= current_user.organization.plan.name %>
+              </span>
+            </div>
+            <div class="col-md-3">
+              <strong>Projects:</strong><br>
+              <%= @projects.count %>/<%= current_user.organization.projects_limit == Float::INFINITY ? '∞' : current_user.organization.projects_limit %>
+            </div>
+            <div class="col-md-3">
+              <strong>Team Members:</strong><br>
+              <%= current_user.organization.users.count %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Projects Grid -->
+  <% if @projects.any? %>
+    <div class="row">
+      <% @projects.each do |project| %>
+        <div class="col-md-6 col-lg-4 mb-4">
+          <div class="card h-100">
+            <div class="card-body d-flex flex-column">
+              <h5 class="card-title">
+                <%= link_to project.name, project, class: "text-decoration-none" %>
+              </h5>
+              <p class="card-text flex-grow-1">
+                <%= truncate(project.description, length: 100) %>
+              </p>
+              
+              <div class="mt-auto">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <small class="text-muted">
+                    <i class="fas fa-user"></i>
+                    <%= project.created_by.full_name %>
+                  </small>
+                  <small class="text-muted">
+                    <i class="fas fa-calendar"></i>
+                    <%= project.created_at.strftime("%b %d, %Y") %>
+                  </small>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center">
+                  <small class="text-muted">
+                    <i class="fas fa-file"></i>
+                    <%= project.artifacts.count %> files
+                  </small>
+                  
+                  <div class="btn-group btn-group-sm">
+                    <%= link_to "View", project, class: "btn btn-outline-primary btn-sm" %>
+                    <% if current_user.admin? || project.created_by == current_user %>
+                      <%= link_to "Edit", edit_project_path(project), class: "btn btn-outline-secondary btn-sm" %>
+                    <% end %>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <div class="text-center py-5">
+      <div class="mb-4">
+        <i class="fas fa-folder-open fa-4x text-muted"></i>
+      </div>
+      <h4>No Projects Yet</h4>
+      <p class="text-muted mb-4">Get started by creating your first project</p>
+      <% if @can_create_project %>
+        <%= link_to "Create Your First Project", new_project_path, class: "btn btn-primary btn-lg" %>
+      <% else %>
+        <p class="text-warning">
+          You've reached your project limit. 
+          <% if current_user.organization.free_plan? %>
+            Upgrade to Premium for unlimited projects.
+          <% end %>
+        </p>
+      <% end %>
+    </div>
+  <% end %>
+</div>

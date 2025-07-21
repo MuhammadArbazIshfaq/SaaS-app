@@ -11,6 +11,27 @@ Rails.application.routes.draw do
   # Organizations routes for multi-tenancy
   resources :organizations, only: [:show, :edit, :update]
   
+  # Project management routes
+  resources :projects do
+    resources :artifacts, except: [:index] do
+      member do
+        get :download
+      end
+    end
+    
+    resources :invitations do
+      member do
+        post :resend
+      end
+    end
+  end
+  
+  # Standalone invitation acceptance (no authentication required)
+  get 'invitations/:token/accept', to: 'invitations#accept', as: 'accept_invitation'
+  
+  # Dashboard for signed-in users
+  get 'dashboard', to: 'projects#index'
+  
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.

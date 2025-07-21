@@ -1,0 +1,90 @@
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-lg-8 mx-auto">
+      <!-- Header -->
+      <div class="mb-4">
+        <h2>Edit File Details</h2>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb">
+            <li class="breadcrumb-item"><%= link_to "Projects", projects_path %></li>
+            <li class="breadcrumb-item"><%= link_to @project.name, @project %></li>
+            <li class="breadcrumb-item"><%= link_to @artifact.display_name, [@project, @artifact] %></li>
+            <li class="breadcrumb-item active" aria-current="page">Edit</li>
+          </ol>
+        </nav>
+      </div>
+
+      <!-- Edit Form -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="card-title mb-0">File Details</h5>
+        </div>
+        <div class="card-body">
+          <%= form_with model: [@project, @artifact], local: true do |f| %>
+            <% if @artifact.errors.any? %>
+              <div class="alert alert-danger">
+                <h6>Please fix the following errors:</h6>
+                <ul class="mb-0">
+                  <% @artifact.errors.full_messages.each do |message| %>
+                    <li><%= message %></li>
+                  <% end %>
+                </ul>
+              </div>
+            <% end %>
+
+            <div class="mb-3">
+              <%= f.label :name, class: "form-label" %>
+              <%= f.text_field :name, class: "form-control", 
+                  placeholder: @artifact.file.attached? ? @artifact.file.filename.to_s : "Enter file name" %>
+              <div class="form-text">Leave blank to use the original filename</div>
+            </div>
+
+            <div class="mb-3">
+              <%= f.label :artifact_type, "File Type", class: "form-label" %>
+              <%= f.select :artifact_type, 
+                  options_for_select([
+                    ['Document', 'document'],
+                    ['Image', 'image'],
+                    ['Spreadsheet', 'spreadsheet'],
+                    ['Presentation', 'presentation'],
+                    ['Other', 'other']
+                  ], @artifact.artifact_type), 
+                  {}, 
+                  { class: "form-select" } %>
+            </div>
+
+            <div class="mb-3">
+              <%= f.label :description, class: "form-label" %>
+              <%= f.text_area :description, class: "form-control", rows: 3, 
+                  placeholder: "Add a description for this file..." %>
+            </div>
+
+            <% if @artifact.file.attached? %>
+              <div class="mb-3">
+                <label class="form-label">Current File</label>
+                <div class="p-3 bg-light rounded">
+                  <div class="d-flex align-items-center">
+                    <i class="<%= @artifact.icon_class %> me-2"></i>
+                    <div>
+                      <strong><%= @artifact.file.filename %></strong>
+                      <br><small class="text-muted"><%= @artifact.file_size_human %></small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+
+            <div class="d-flex justify-content-between">
+              <div>
+                <%= link_to "Cancel", [@project, @artifact], class: "btn btn-secondary" %>
+              </div>
+              <div>
+                <%= f.submit "Update File Details", class: "btn btn-primary" %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

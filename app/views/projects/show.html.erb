@@ -1,0 +1,203 @@
+<div class="container mt-4">
+  <!-- Project Header -->
+  <div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+      <h2><%= @project.name %></h2>
+      <p class="text-muted mb-2"><%= @project.description %></p>
+      <div class="d-flex gap-3">
+        <small class="text-muted">
+          <i class="fas fa-user"></i>
+          Created by <%= @project.created_by.full_name %>
+        </small>
+        <small class="text-muted">
+          <i class="fas fa-calendar"></i>
+          <%= @project.created_at.strftime("%B %d, %Y") %>
+        </small>
+      </div>
+    </div>
+    
+    <div class="btn-group">
+      <%= link_to "Back to Projects", projects_path, class: "btn btn-outline-secondary" %>
+      <% if current_user.admin? || @project.created_by == current_user %>
+        <%= link_to "Edit Project", edit_project_path(@project), class: "btn btn-outline-primary" %>
+        <% if current_user.admin? %>
+          <%= link_to "Invite Member", new_project_invitation_path(@project), class: "btn btn-success" %>
+        <% end %>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Project Files Section -->
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">Project Files</h5>
+          <span class="badge bg-secondary"><%= @artifacts.count %> files</span>
+        </div>
+        <div class="card-body">
+          <!-- Upload Form -->
+          <%= form_with model: [@project, @new_artifact], local: true, class: "mb-4", multipart: true do |f| %>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <%= f.file_field :file, class: "form-control", required: true, accept: "image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip" %>
+                <div class="form-text">Upload your file (images, documents, spreadsheets, etc.)</div>
+              </div>
+              <div class="col-md-6">
+                <%= f.select :artifact_type, 
+                    options_for_select([
+                      ['Document', 'document'],
+                      ['Image', 'image'],
+                      ['Spreadsheet', 'spreadsheet'],
+                      ['Presentation', 'presentation'],
+                      ['Other', 'other']
+                    ], @new_artifact.artifact_type), 
+                    { prompt: 'Select type' }, 
+                    { class: "form-select", required: true } %>
+              </div>
+              <div class="col-md-8">
+                <%= f.text_field :name, class: "form-control", placeholder: "File name (optional - will use filename if empty)" %>
+              </div>
+              <div class="col-md-4">
+                <%= f.submit "Upload File", class: "btn btn-primary w-100" %>
+              </div>
+              <div class="col-12">
+                <%= f.text_area :description, class: "form-control", rows: 2, 
+                    placeholder: "File description (optional)" %>
+              </div>
+            </div>
+          <% end %>
+
+          <!-- Files List -->
+          <% if @artifacts.any? %>
+            <div class="table-responsive">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Uploaded By</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% @artifacts.each do |artifact| %>
+                    <tr>
+                      <td>
+                        <div class="d-flex align-items-center">
+                          <i class="<%= artifact.icon_class %> me-2"></i>
+                          <div>
+                            <strong><%= artifact.display_name %></strong>
+                            <% if artifact.file.attached? %>
+                              <br><small class="text-muted">
+                                <%= artifact.file.filename %> • <%= artifact.file_size_human %>
+                              </small>
+                            <% end %>
+                            <% if artifact.description.present? %>
+                              <br><small class="text-muted"><%= artifact.description %></small>
+                            <% end %>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="badge bg-info"><%= artifact.artifact_type.humanize %></span>
+                      </td>
+                      <td><%= artifact.uploaded_by.full_name.present? ? artifact.uploaded_by.full_name : artifact.uploaded_by.email %></td>
+                      <td><%= artifact.created_at.strftime("%b %d, %Y") %></td>
+                      <td>
+                        <div class="btn-group btn-group-sm">
+                          <%= link_to "View", [@project, artifact], class: "btn btn-outline-primary btn-sm" %>
+                          <% if artifact.file.attached? %>
+                            <%= link_to "Download", download_project_artifact_path(@project, artifact), class: "btn btn-outline-success btn-sm" %>
+                          <% end %>
+                          <% if current_user.admin? || artifact.uploaded_by == current_user %>
+                            <%= link_to "Edit", edit_project_artifact_path(@project, artifact), class: "btn btn-outline-secondary btn-sm" %>
+                            <%= link_to "Delete", [@project, artifact], method: :delete,
+                                confirm: "Are you sure?", class: "btn btn-outline-danger btn-sm" %>
+                          <% end %>
+                        </div>
+                      </td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          <% else %>
+            <div class="text-center py-4">
+              <i class="fas fa-file fa-2x text-muted mb-3"></i>
+              <p class="text-muted">No files uploaded yet. Add your first file above.</p>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Project Info Sidebar -->
+    <div class="col-md-4">
+      <!-- Project Stats -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <h6 class="mb-0">Project Statistics</h6>
+        </div>
+        <div class="card-body">
+          <div class="row text-center">
+            <div class="col-6">
+              <div class="border-end">
+                <h4 class="text-primary"><%= @artifacts.count %></h4>
+                <small class="text-muted">Files</small>
+              </div>
+            </div>
+            <div class="col-6">
+              <h4 class="text-success"><%= @project_members.count %></h4>
+              <small class="text-muted">Members</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Team Members -->
+      <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">Team Members</h6>
+          <% if current_user.admin? %>
+            <%= link_to "Invite", new_project_invitation_path(@project), class: "btn btn-sm btn-outline-primary" %>
+          <% end %>
+        </div>
+        <div class="card-body">
+          <% @project_members.each do |member| %>
+            <div class="d-flex align-items-center mb-2">
+              <div class="flex-grow-1">
+                <div class="fw-bold"><%= member.full_name.present? ? member.full_name : member.email %></div>
+                <small class="text-muted"><%= member.email %></small>
+              </div>
+              <span class="badge bg-<%= member.admin? ? 'primary' : 'secondary' %>">
+                <%= (member.role || 'member').humanize %>
+              </span>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- Project Actions -->
+      <% if current_user.admin? || @project.created_by == current_user %>
+        <div class="card">
+          <div class="card-header">
+            <h6 class="mb-0">Project Management</h6>
+          </div>
+          <div class="card-body">
+            <div class="d-grid gap-2">
+              <%= link_to "Edit Project", edit_project_path(@project), class: "btn btn-outline-primary" %>
+              <% if current_user.admin? %>
+                <%= link_to "View Invitations", project_invitations_path(@project), class: "btn btn-outline-info" %>
+                <%= link_to "Delete Project", @project, method: :delete,
+                    confirm: "Are you sure? This action cannot be undone.",
+                    class: "btn btn-outline-danger" %>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>
