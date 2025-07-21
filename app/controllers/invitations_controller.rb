@@ -1,12 +1,12 @@
 class InvitationsController < ApplicationController
   before_action :authenticate_user!
   before_action :ensure_admin, except: [:accept]
-  before_action :set_project, except: [:accept, :index]
+  before_action :set_project, except: [:accept]
   before_action :set_invitation, only: [:show, :edit, :update, :destroy, :resend]
 
   def index
-    @invitations = current_user.organization.invitations.includes(:project, :invited_by, :organization)
-                                .order(created_at: :desc)
+    @invitations = @project.invitations.includes(:invited_by, :organization)
+                           .order(created_at: :desc)
   end
 
   def show
@@ -23,9 +23,12 @@ class InvitationsController < ApplicationController
     @invitation.token = SecureRandom.urlsafe_base64(32)
 
     if @invitation.save
+      # Auto-create user account for the invitee
+      create_user_for_invitation(@invitation)
+      
       # Send invitation email (implement based on your email setup)
       # InvitationMailer.invite(@invitation).deliver_now
-      redirect_to @project, notice: 'Invitation sent successfully.'
+      redirect_to @project, notice: 'Invitation sent successfully. User account created.'
     else
       render :new
     end
@@ -62,11 +65,29 @@ class InvitationsController < ApplicationController
     end
 
     if user_signed_in?
-      accept_invitation_for_current_user
+      # Check if this is an admin forcing acceptance or normal user acceptance
+      if current_user.admin? && request.post?
+        # Admin forcing acceptance (for testing/debugging)
+        @invitation.update!(accepted_at: Time.current)
+        redirect_to project_invitations_path(@invitation.project), 
+                   notice: 'Invitation marked as accepted.'
+      else
+        # Normal user acceptance
+        accept_invitation_for_current_user
+      end
     else
-      # Store invitation token in session and redirect to registration
-      session[:invitation_token] = @invitation.token
-      redirect_to new_user_registration_path, notice: 'Please create an account to accept the invitation.'
+      # Check if user account exists for this invitation
+      invited_user = User.find_by(email: @invitation.email)
+      
+      if invited_user
+        # User account exists, redirect to sign in
+        session[:invitation_token] = @invitation.token
+        redirect_to new_user_session_path, notice: 'Please sign in with your account to accept the invitation.'
+      else
+        # This shouldn't happen with auto-creation, but handle it gracefully
+        session[:invitation_token] = @invitation.token
+        redirect_to new_user_session_path, notice: 'Please sign in to accept the invitation.'
+      end
     end
   end
 
@@ -93,15 +114,60 @@ class InvitationsController < ApplicationController
   end
 
   def accept_invitation_for_current_user
+    Rails.logger.info "=== INVITATION ACCEPTANCE DEBUG ==="
+    Rails.logger.info "Current user email: #{current_user.email}"
+    Rails.logger.info "Invitation email: #{@invitation.email}"
+    Rails.logger.info "Emails match: #{current_user.email == @invitation.email}"
+    Rails.logger.info "Invitation accepted_at before: #{@invitation.accepted_at}"
+    
     if current_user.email == @invitation.email
       @invitation.update!(accepted_at: Time.current)
+      Rails.logger.info "Invitation accepted_at after: #{@invitation.accepted_at}"
+      
       # Add user to the project organization if not already a member
       unless current_user.organization == @invitation.organization
         current_user.update!(organization: @invitation.organization, role: @invitation.role)
+        Rails.logger.info "Updated user organization to: #{current_user.organization.name}"
       end
       redirect_to @invitation.project, notice: 'Invitation accepted! Welcome to the project.'
     else
       redirect_to root_path, alert: 'This invitation is not for your email address.'
+    end
+  end
+
+  def create_user_for_invitation(invitation)
+    # Check if user already exists
+    existing_user = User.find_by(email: invitation.email)
+    
+    if existing_user
+      # User exists, just add them to the organization if not already a member
+      unless existing_user.organization == invitation.organization
+        existing_user.update!(
+          organization: invitation.organization,
+          role: invitation.role
+        )
+      end
+    else
+      # Create new user account
+      # Generate a temporary password that user will need to reset
+      temp_password = SecureRandom.alphanumeric(12)
+      
+      user = User.new(
+        email: invitation.email,
+        password: temp_password,
+        password_confirmation: temp_password,
+        organization: invitation.organization,
+        role: invitation.role,
+        first_name: invitation.email.split('@').first.capitalize, # Use email prefix as first name
+        last_name: 'User' # Default last name
+      )
+      
+      # Skip email confirmation for invited users - confirm them immediately
+      user.skip_confirmation!
+      user.save!
+      
+      # Store the temp password in invitation for email (optional)
+      # invitation.update!(temp_password: temp_password) # if you add this field
     end
   end
 end

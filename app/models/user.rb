@@ -16,9 +16,9 @@ class User < ApplicationRecord
   has_many :sent_invitations, class_name: 'Invitation', foreign_key: 'invited_by_id', dependent: :destroy
   
   # Validations
-  validates :role, inclusion: { in: %w[admin member] }
-  validates :first_name, presence: true
-  validates :last_name, presence: true
+  validates :role, inclusion: { in: %w[admin member] }, allow_nil: true
+  validates :first_name, presence: true, unless: :invited_user?
+  validates :last_name, presence: true, unless: :invited_user?
   
   # Scopes
   scope :admins, -> { where(role: 'admin') }
@@ -59,15 +59,25 @@ class User < ApplicationRecord
   private
   
   def create_organization_if_needed
-    return if organization.present? || role == 'member'
+    return if organization.present? # Skip if organization is already assigned
+    return if role == 'member' # Members don't create organizations
     
-    # Only create organization for admin users during signup
+    # Only create organization for admin users during NEW organization signup
+    # Don't create for invited users who already have an organization assigned
     return unless role == 'admin'
     
     # Organization will be created in the controller with user-provided name
   end
   
   def set_default_role
-    self.role ||= 'admin' # Default to admin for new signups
+    # Only set default role if no role is assigned and no organization is present
+    # This prevents overriding roles for invited users
+    self.role ||= 'admin' if organization.blank?
+  end
+
+  def invited_user?
+    # User is considered invited if they have an organization but it's not their first organization
+    # Or if they were created with a role already assigned
+    organization.present? && role.present?
   end
 end

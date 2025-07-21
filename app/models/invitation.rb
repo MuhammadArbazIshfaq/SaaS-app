@@ -9,6 +9,7 @@ class Invitation < ApplicationRecord
   
   scope :pending, -> { where(accepted_at: nil) }
   scope :accepted, -> { where.not(accepted_at: nil) }
+  scope :recent, -> { order(created_at: :desc) }
   
   def accepted?
     accepted_at.present?

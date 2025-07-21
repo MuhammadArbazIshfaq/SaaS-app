@@ -1,0 +1,148 @@
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-12">
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+          <h2>Project Invitations</h2>
+          <p class="text-muted">Manage team invitations for <strong><%= @project.name %></strong></p>
+        </div>
+        <div class="btn-group">
+          <%= link_to "Back to Project", @project, class: "btn btn-outline-secondary" %>
+          <%= link_to "Invite Member", new_project_invitation_path(@project), class: "btn btn-primary" %>
+        </div>
+      </div>
+
+      <!-- Invitations Table -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="card-title mb-0">
+            <i class="bi bi-envelope me-2"></i>
+            All Invitations
+          </h5>
+        </div>
+        <div class="card-body">
+          <% if @project.invitations.any? %>
+            <div class="table-responsive">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Invited By</th>
+                    <th>Status</th>
+                    <th>Sent Date</th>
+                    <th>Accepted Date</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% @project.invitations.where.not(email: nil).includes(:invited_by).order(created_at: :desc).each do |invitation| %>
+                    <tr class="<%= invitation.accepted? ? 'table-success' : '' %>">
+                      <td>
+                        <strong><%= invitation.email %></strong>
+                      </td>
+                      <td>
+                        <span class="badge bg-<%= invitation.role == 'admin' ? 'primary' : 'secondary' %>">
+                          <%= invitation.role&.humanize || 'Unknown' %>
+                        </span>
+                      </td>
+                      <td>
+                        <%= invitation.invited_by&.full_name&.present? ? invitation.invited_by.full_name : invitation.invited_by&.email || 'Unknown' %>
+                      </td>
+                      <td>
+                        <% if invitation.accepted? %>
+                          <span class="badge bg-success">
+                            <i class="bi bi-check-circle me-1"></i>
+                            Accepted
+                          </span>
+                        <% else %>
+                          <span class="badge bg-warning">
+                            <i class="bi bi-clock me-1"></i>
+                            Pending
+                          </span>
+                        <% end %>
+                      </td>
+                      <td><%= invitation.created_at&.strftime("%b %d, %Y at %I:%M %p") || 'Unknown' %>
+                      <td>
+                        <% if invitation.accepted? %>
+                          <%= invitation.accepted_at&.strftime("%b %d, %Y at %I:%M %p") || 'Unknown' %>
+                        <% else %>
+                          <span class="text-muted">-</span>
+                        <% end %>
+                      </td>
+                      <td>
+                        <div class="btn-group btn-group-sm">
+                          <% unless invitation.accepted? %>
+                            <%= link_to "Resend", resend_project_invitation_path(@project, invitation), 
+                                method: :post, class: "btn btn-outline-info btn-sm" %>
+                            <%= link_to "Copy Link", "#", 
+                                onclick: "copyToClipboard('#{accept_invitation_url(invitation.token)}'); return false;",
+                                class: "btn btn-outline-secondary btn-sm" %>
+                            <!-- Force Accept Button for Testing -->
+                            <%= link_to "Force Accept", accept_invitation_path(invitation.token), 
+                                method: :post, class: "btn btn-outline-success btn-sm",
+                                title: "Force accept this invitation (for testing)" %>
+                          <% end %>
+                          <%= link_to "Cancel", [@project, invitation], method: :delete,
+                              confirm: "Are you sure you want to cancel this invitation?",
+                              class: "btn btn-outline-danger btn-sm" %>
+                        </div>
+                      </td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          <% else %>
+            <div class="text-center py-5">
+              <i class="bi bi-envelope fs-1 text-muted"></i>
+              <h4 class="mt-3">No Invitations Sent</h4>
+              <p class="text-muted">Start building your team by inviting members to this project.</p>
+              <%= link_to "Send First Invitation", new_project_invitation_path(@project), class: "btn btn-primary" %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- Quick Stats -->
+      <% if @project.invitations.any? %>
+        <div class="row mt-4">
+          <div class="col-md-4">
+            <div class="card text-center">
+              <div class="card-body">
+                <h3 class="text-primary"><%= @project.invitations.count %></h3>
+                <p class="text-muted mb-0">Total Invitations</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card text-center">
+              <div class="card-body">
+                <h3 class="text-success"><%= @project.invitations.accepted.count %></h3>
+                <p class="text-muted mb-0">Accepted</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card text-center">
+              <div class="card-body">
+                <h3 class="text-warning"><%= @project.invitations.pending.count %></h3>
+                <p class="text-muted mb-0">Pending</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<script>
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(function() {
+    // You could add a toast notification here
+    alert('Invitation link copied to clipboard!');
+  });
+}
+</script>

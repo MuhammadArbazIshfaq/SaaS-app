@@ -5,7 +5,11 @@ Rails.application.routes.draw do
     post 'register', to: 'registrations#create'
   end
   
-  devise_for :users
+  devise_for :users, controllers: {
+    registrations: 'users/registrations',
+    sessions: 'users/sessions',
+    passwords: 'users/passwords'
+  }
   root "welcome#index"
   
   # Organizations routes for multi-tenancy
@@ -28,6 +32,7 @@ Rails.application.routes.draw do
   
   # Standalone invitation acceptance (no authentication required)
   get 'invitations/:token/accept', to: 'invitations#accept', as: 'accept_invitation'
+  post 'invitations/:token/accept', to: 'invitations#accept'
   
   # Dashboard for signed-in users
   get 'dashboard', to: 'projects#index'
