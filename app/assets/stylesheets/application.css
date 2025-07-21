@@ -6,5 +6,8 @@
  * cascading order, meaning styles declared later in the document or manifest will override earlier ones,
  * depending on specificity.
  *
+ *= require devise_bootstrap_views
  * Consider organizing styles into separate files for maintainability.
  */
+
+/* Your custom styles can go here */
