@@ -1,4 +1,10 @@
 Rails.application.routes.draw do
+  # Organization registration routes
+  namespace :organizations do
+    get 'register', to: 'registrations#new', as: 'register'
+    post 'register', to: 'registrations#create'
+  end
+  
   devise_for :users
   root "welcome#index"
   

@@ -1,0 +1,2 @@
+module Organizations::RegistrationsHelper
+end

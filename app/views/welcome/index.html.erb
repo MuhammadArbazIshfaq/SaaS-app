@@ -1,12 +1,220 @@
-<div class="container mt-5">
-  <div class="row">
-    <div class="col-md-12">
-      <h1 class="display-4 text-primary">Welcome to Our SaaS App</h1>
-      <p class="lead">This is a Bootstrap-styled welcome page.</p>
-      <hr class="my-4">
-      <p>You can now see Bootstrap styling in action!</p>
-      <a class="btn btn-primary btn-lg" href="/users/sign_in" role="button">Sign In</a>
-      <a class="btn btn-outline-secondary btn-lg" href="/users/sign_up" role="button">Sign Up</a>
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-10">
+      <div class="text-center mb-5">
+        <h1 class="display-3 text-primary fw-bold mb-4">Project Management Made Simple</h1>
+        <p class="lead text-muted mb-3">Organize teams, manage projects, and track progress with our intuitive project management platform.</p>
+      </div>
+      
+      <% if user_signed_in? %>
+        <!-- User Dashboard Content -->
+        <div class="row g-4">
+          <!-- User Info Card -->
+          <div class="col-md-6">
+            <div class="card border-success">
+              <div class="card-header bg-success text-white">
+                <h5 class="card-title mb-0">
+                  <i class="bi bi-person-circle"></i> User Information
+                </h5>
+              </div>
+              <div class="card-body">
+                <p class="card-text">
+                  <strong>Email:</strong> <%= current_user.email %><br>
+                  <strong>Account Status:</strong> 
+                  <span class="badge bg-success">Active</span><br>
+                  <strong>Member Since:</strong> <%= current_user.created_at.strftime("%B %d, %Y") %>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Organization & Plan Info Card -->
+          <div class="col-md-6">
+            <div class="card border-primary">
+              <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                  <i class="bi bi-building"></i> Organization & Plan
+                </h5>
+              </div>
+              <div class="card-body">
+                <% if current_user.organization %>
+                  <p class="card-text">
+                    <strong>Organization:</strong> <%= current_user.organization.name %><br>
+                    <strong>Subdomain:</strong> <%= current_user.organization.subdomain %><br>
+                    <strong>Status:</strong> 
+                    <% case current_user.organization.status %>
+                    <% when 'trial' %>
+                      <span class="badge bg-warning text-dark">Trial</span>
+                    <% when 'active' %>
+                      <span class="badge bg-success">Active</span>
+                    <% when 'suspended' %>
+                      <span class="badge bg-danger">Suspended</span>
+                    <% when 'cancelled' %>
+                      <span class="badge bg-secondary">Cancelled</span>
+                    <% end %>
+                    <br>
+                    
+                    <% if current_user.organization.plan %>
+                      <strong>Current Plan:</strong> 
+                      <span class="badge bg-info text-dark fs-6">
+                        <%= current_user.organization.plan.name %> 
+                        ($<%= current_user.organization.plan.price %>/<%= current_user.organization.plan.billing_cycle %>)
+                      </span><br>
+                      <strong>Max Users:</strong> <%= current_user.organization.plan.max_users %><br>
+                      <strong>Current Users:</strong> <%= current_user.organization.users.count %>/<%= current_user.organization.plan.max_users %>
+                    <% else %>
+                      <strong>Current Plan:</strong> <span class="badge bg-secondary">No Plan Assigned</span>
+                    <% end %>
+                    
+                    <% if current_user.organization.trial? && current_user.organization.trial_ends_at %>
+                      <br><strong>Trial Ends:</strong> 
+                      <span class="text-<%= current_user.organization.trial_expired? ? 'danger' : 'warning' %>">
+                        <%= current_user.organization.trial_ends_at.strftime("%B %d, %Y") %>
+                        (<%= current_user.organization.days_left_in_trial %> days left)
+                      </span>
+                    <% end %>
+                  </p>
+                <% else %>
+                  <p class="text-warning">No organization assigned</p>
+                <% end %>
+              </div>
+            </div>
+          </div>
+
+          <!-- Plan Features Card -->
+          <% if current_user.organization&.plan %>
+          <div class="col-12">
+            <div class="card border-info">
+              <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">
+                  <i class="bi bi-star"></i> Your Plan Features
+                </h5>
+              </div>
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-8">
+                    <ul class="list-unstyled">
+                      <% current_user.organization.plan.features_list.each do |feature| %>
+                        <li><i class="bi bi-check-circle text-success"></i> <%= feature %></li>
+                      <% end %>
+                    </ul>
+                  </div>
+                  <div class="col-md-4 text-end">
+                    <% if current_user.organization.trial? %>
+                      <%= link_to 'Upgrade Plan', '#', class: "btn btn-warning btn-lg" %>
+                    <% else %>
+                      <%= link_to 'Manage Plan', '#', class: "btn btn-outline-primary" %>
+                    <% end %>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <% end %>
+
+          <!-- Usage Stats Card -->
+          <div class="col-12">
+            <div class="card border-secondary">
+              <div class="card-header bg-secondary text-white">
+                <h5 class="card-title mb-0">
+                  <i class="bi bi-graph-up"></i> Usage Overview
+                </h5>
+              </div>
+              <div class="card-body">
+                <div class="row text-center">
+                  <div class="col-md-3">
+                    <div class="border-end">
+                      <h3 class="text-primary"><%= current_user.organization&.users&.count || 0 %></h3>
+                      <p class="text-muted mb-0">Total Users</p>
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="border-end">
+                      <h3 class="text-success">
+                        <%= current_user.organization&.plan&.max_users || 'Unlimited' %>
+                      </h3>
+                      <p class="text-muted mb-0">User Limit</p>
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="border-end">
+                      <h3 class="text-info">
+                        <%= current_user.organization&.trial? ? current_user.organization.days_left_in_trial : '∞' %>
+                      </h3>
+                      <p class="text-muted mb-0">
+                        <%= current_user.organization&.trial? ? 'Trial Days Left' : 'Active Plan' %>
+                      </p>
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <h3 class="text-warning">
+                      $<%= current_user.organization&.plan&.price || '0' %>
+                    </h3>
+                    <p class="text-muted mb-0">Monthly Cost</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="text-center mt-5">
+          <div class="d-flex justify-content-center gap-3 flex-wrap">
+            <%= link_to 'Dashboard', '#', class: "btn btn-primary btn-lg px-4" %>
+            <%= link_to 'Team Management', '#', class: "btn btn-outline-primary btn-lg px-4" %>
+            <%= link_to 'Profile Settings', edit_user_registration_path, class: "btn btn-outline-secondary btn-lg px-4" %>
+            <%= link_to 'Sign Out', destroy_user_session_path, data: {turbo_method: :delete, confirm: 'Are you sure you want to sign out?' }, class: "btn btn-danger btn-lg px-4" %>
+          </div>
+        </div>
+
+      <% else %>
+        <!-- Guest Content -->
+        <div class="text-center">
+          <hr class="my-4">
+          <p class="mb-4">Join thousands of users who trust our platform for their business needs.</p>
+          
+          <!-- Available Plans Preview -->
+          <div class="row g-4 mb-5">
+            <div class="col-md-6">
+              <div class="card">
+                <div class="card-body text-center">
+                  <h5 class="card-title">Free Plan</h5>
+                  <h2 class="text-primary">$0<small class="text-muted">/month</small></h2>
+                  <ul class="list-unstyled">
+                    <li>1 Project</li>
+                    <li>Unlimited Team Members</li>
+                    <li>Basic Project Management</li>
+                    <li>1GB File Storage</li>
+                    <li>Email Support</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card border-primary">
+                <div class="card-body text-center">
+                  <h5 class="card-title">Premium Plan</h5>
+                  <h2 class="text-primary">$29.99<small class="text-muted">/month</small></h2>
+                  <ul class="list-unstyled">
+                    <li>Unlimited Projects</li>
+                    <li>Unlimited Team Members</li>
+                    <li>Advanced Project Management</li>
+                    <li>Unlimited File Storage</li>
+                    <li>Priority Support</li>
+                    <li>Advanced Analytics</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="d-flex justify-content-center gap-3">
+            <%= link_to 'Sign In', new_user_session_path, class: "btn btn-primary btn-lg px-4" %>
+            <%= link_to 'Start Your Organization', organizations_register_path, class: "btn btn-success btn-lg px-4" %>
+          </div>
+        </div>
+      <% end %>
     </div>
   </div>
 </div>

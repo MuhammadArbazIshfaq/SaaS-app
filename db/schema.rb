@@ -10,12 +10,71 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_07_21_044440) do
+ActiveRecord::Schema[8.0].define(version: 2025_07_21_073603) do
+  create_table "artifacts", force: :cascade do |t|
+    t.string "name"
+    t.text "description"
+    t.string "artifact_type"
+    t.integer "project_id", null: false
+    t.integer "uploaded_by_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["project_id"], name: "index_artifacts_on_project_id"
+    t.index ["uploaded_by_id"], name: "index_artifacts_on_uploaded_by_id"
+  end
+
+  create_table "invitations", force: :cascade do |t|
+    t.string "email"
+    t.string "role"
+    t.integer "organization_id", null: false
+    t.integer "project_id", null: false
+    t.integer "invited_by_id", null: false
+    t.string "token"
+    t.datetime "accepted_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["invited_by_id"], name: "index_invitations_on_invited_by_id"
+    t.index ["organization_id"], name: "index_invitations_on_organization_id"
+    t.index ["project_id"], name: "index_invitations_on_project_id"
+  end
+
   create_table "organizations", force: :cascade do |t|
     t.string "name"
     t.string "subdomain"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "plan"
+    t.decimal "plan_price"
+    t.text "plan_features"
+    t.string "status"
+    t.datetime "trial_ends_at"
+    t.integer "plan_id"
+    t.index ["plan_id"], name: "index_organizations_on_plan_id"
+  end
+
+  create_table "plans", force: :cascade do |t|
+    t.string "name", null: false
+    t.decimal "price", precision: 8, scale: 2, default: "0.0"
+    t.text "features"
+    t.integer "max_users", default: 1
+    t.string "billing_cycle", default: "monthly"
+    t.boolean "active", default: true
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "project_limit", default: 1
+    t.index ["active"], name: "index_plans_on_active"
+    t.index ["name"], name: "index_plans_on_name", unique: true
+  end
+
+  create_table "projects", force: :cascade do |t|
+    t.string "name"
+    t.text "description"
+    t.integer "organization_id", null: false
+    t.integer "created_by_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_by_id"], name: "index_projects_on_created_by_id"
+    t.index ["organization_id"], name: "index_projects_on_organization_id"
   end
 
   create_table "users", force: :cascade do |t|
@@ -31,10 +90,21 @@ ActiveRecord::Schema[8.0].define(version: 2025_07_21_044440) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "organization_id", null: false
+    t.string "role"
+    t.string "first_name"
+    t.string "last_name"
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["organization_id"], name: "index_users_on_organization_id"
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
+  add_foreign_key "artifacts", "projects"
+  add_foreign_key "artifacts", "uploaded_bies"
+  add_foreign_key "invitations", "invited_bies"
+  add_foreign_key "invitations", "organizations"
+  add_foreign_key "invitations", "projects"
+  add_foreign_key "organizations", "plans"
+  add_foreign_key "projects", "created_bies"
+  add_foreign_key "projects", "organizations"
   add_foreign_key "users", "organizations"
 end

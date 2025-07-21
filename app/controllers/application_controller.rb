@@ -4,7 +4,6 @@ class ApplicationController < ActionController::Base
   before_action :authenticate_user!
   
   # Multi-tenancy setup
-  set_current_tenant_through_filter
   before_action :set_current_tenant
   
   private
@@ -12,7 +11,7 @@ class ApplicationController < ActionController::Base
   def set_current_tenant
     # You can set tenant based on subdomain, current_user, or other logic
     if user_signed_in?
-      set_current_tenant(current_user.organization)
+      ActsAsTenant.current_tenant = current_user.organization
     end
   end
 end

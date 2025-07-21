@@ -1,0 +1,19 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  email: MyString
+  role: MyString
+  organization: one
+  project: one
+  invited_by: one
+  token: MyString
+  accepted_at: 2025-07-21 02:57:18
+
+two:
+  email: MyString
+  role: MyString
+  organization: two
+  project: two
+  invited_by: two
+  token: MyString
+  accepted_at: 2025-07-21 02:57:18
