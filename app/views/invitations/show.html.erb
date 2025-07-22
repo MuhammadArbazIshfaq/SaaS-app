@@ -1,0 +1,164 @@
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-lg-8 mx-auto">
+      <!-- Header -->
+      <div class="mb-4">
+        <h2>Invitation Details</h2>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb">
+            <li class="breadcrumb-item"><%= link_to "Projects", projects_path %></li>
+            <li class="breadcrumb-item"><%= link_to @project.name, @project %></li>
+            <li class="breadcrumb-item"><%= link_to "Invitations", project_invitations_path(@project) %></li>
+            <li class="breadcrumb-item active" aria-current="page">Invitation</li>
+          </ol>
+        </nav>
+      </div>
+
+      <!-- Invitation Details Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+              <i class="bi bi-person-plus me-2"></i>
+              Invitation to <%= @project.name %>
+            </h5>
+            <span class="badge bg-<%= @invitation.accepted? ? 'success' : 'warning' %> fs-6">
+              <%= @invitation.accepted? ? 'Accepted' : 'Pending' %>
+            </span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <h6>Invitation Details</h6>
+              <table class="table table-borderless">
+                <tbody>
+                  <tr>
+                    <td><strong>Email:</strong></td>
+                    <td><%= @invitation.email %></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Role:</strong></td>
+                    <td>
+                      <span class="badge bg-secondary">
+                        <%= @invitation.role&.humanize || 'Unknown' %>
+                      </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><strong>Invited by:</strong></td>
+                    <td><%= @invitation.invited_by&.full_name || 'Unknown' %></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Date sent:</strong></td>
+                    <td><%= @invitation.created_at&.strftime("%B %d, %Y at %I:%M %p") || 'Unknown' %></td>
+                  </tr>
+                  <% if @invitation.accepted? %>
+                    <tr>
+                      <td><strong>Accepted on:</strong></td>
+                      <td><%= @invitation.accepted_at&.strftime("%B %d, %Y at %I:%M %p") || 'Unknown' %></td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+            <div class="col-md-6">
+              <h6>Project Information</h6>
+              <table class="table table-borderless">
+                <tbody>
+                  <tr>
+                    <td><strong>Project:</strong></td>
+                    <td><%= link_to @project.name, @project, class: "text-decoration-none" %></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Organization:</strong></td>
+                    <td><%= @invitation.organization&.name || 'Unknown' %></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Description:</strong></td>
+                    <td><%= truncate(@project.description, length: 100) %></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Invitation Link Section -->
+          <% unless @invitation.accepted? %>
+            <div class="row mt-4">
+              <div class="col-12">
+                <div class="card bg-light">
+                  <div class="card-body">
+                    <h6 class="card-title">Invitation Link</h6>
+                    <p class="card-text text-muted">Share this link with the invitee to accept the invitation:</p>
+                    <div class="input-group">
+                      <input type="text" class="form-control" value="<%= accept_invitation_url(@invitation.token) %>" readonly id="invitation-link">
+                      <button class="btn btn-outline-secondary" type="button" onclick="copyInvitationLink()">
+                        <i class="bi bi-clipboard"></i> Copy
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          <% end %>
+
+          <!-- Actions -->
+          <div class="row mt-4">
+            <div class="col-12">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <%= link_to "← Back to Invitations", project_invitations_path(@project), class: "btn btn-secondary" %>
+                </div>
+                <div>
+                  <% unless @invitation.accepted? %>
+                    <%= button_to "Resend Invitation", resend_project_invitation_path(@project, @invitation), 
+                        method: :post, class: "btn btn-outline-primary me-2",
+                        data: { confirm: "Resend invitation to #{@invitation.email}?" },
+                        form: { style: "display: inline;" } %>
+                    <%= link_to "Edit", edit_project_invitation_path(@project, @invitation), class: "btn btn-outline-secondary me-2" %>
+                    <%= button_to "Cancel Invitation", project_invitation_path(@project, @invitation), 
+                        method: :delete, class: "btn btn-outline-danger",
+                        data: { confirm: "Are you sure you want to cancel this invitation?" },
+                        form: { style: "display: inline;" } %>
+                  <% else %>
+                    <span class="text-success">
+                      <i class="bi bi-check-circle"></i> Invitation has been accepted
+                    </span>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function copyInvitationLink() {
+  const linkInput = document.getElementById('invitation-link');
+  linkInput.select();
+  linkInput.setSelectionRange(0, 99999); // For mobile devices
+  
+  try {
+    document.execCommand('copy');
+    
+    // Show feedback
+    const button = event.target.closest('button');
+    const originalHTML = button.innerHTML;
+    button.innerHTML = '<i class="bi bi-check"></i> Copied!';
+    button.classList.remove('btn-outline-secondary');
+    button.classList.add('btn-success');
+    
+    setTimeout(() => {
+      button.innerHTML = originalHTML;
+      button.classList.remove('btn-success');
+      button.classList.add('btn-outline-secondary');
+    }, 2000);
+  } catch (err) {
+    console.error('Could not copy text: ', err);
+  }
+}
+</script>
