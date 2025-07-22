@@ -13,6 +13,7 @@ gem "importmap-rails"
 gem "devise"
 gem "acts_as_tenant"
 gem "twitter-bootstrap-rails"
+gem "stripe"
 
 gem "devise-bootstrap-views"
 # Hotwire's SPA-like page accelerator [https://turbo.hotwired.dev]
@@ -54,6 +55,9 @@ group :development, :test do
 
   # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
   gem "rubocop-rails-omakase", require: false
+  
+  # Load environment variables from .env file
+  gem "dotenv-rails"
 end
 
 group :development do

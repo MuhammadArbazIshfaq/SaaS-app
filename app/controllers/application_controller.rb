@@ -6,7 +6,13 @@ class ApplicationController < ActionController::Base
   # Multi-tenancy setup
   before_action :set_current_tenant
   
+  helper_method :current_organization
+  
   private
+  
+  def current_organization
+    current_user&.organization
+  end
   
   def set_current_tenant
     # You can set tenant based on subdomain, current_user, or other logic

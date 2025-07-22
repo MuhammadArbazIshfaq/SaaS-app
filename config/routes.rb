@@ -25,6 +25,7 @@ Rails.application.routes.draw do
     
     resources :invitations do
       member do
+        get :resend
         post :resend
       end
     end
@@ -33,6 +34,12 @@ Rails.application.routes.draw do
   # Standalone invitation acceptance (no authentication required)
   get 'invitations/:token/accept', to: 'invitations#accept', as: 'accept_invitation'
   post 'invitations/:token/accept', to: 'invitations#accept'
+  
+  # Subscription and billing routes
+  get 'subscription', to: 'subscriptions#show'
+  post 'subscription/create', to: 'subscriptions#create', as: 'create_subscription'
+  get 'subscription/success', to: 'subscriptions#success', as: 'upgrade_success'
+  post 'webhooks/stripe', to: 'subscriptions#webhook'
   
   # Dashboard for signed-in users
   get 'dashboard', to: 'projects#index'

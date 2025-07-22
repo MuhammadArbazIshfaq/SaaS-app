@@ -1,0 +1,21 @@
+<div class="container mt-4">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="card border-success">
+        <div class="card-body text-center">
+          <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
+          <h2 class="mt-3 text-success">Upgrade Successful!</h2>
+          <p class="lead">Your organization has been upgraded to Premium.</p>
+          <p class="text-muted">
+            You now have access to unlimited projects and all premium features.
+          </p>
+          
+          <div class="mt-4">
+            <%= link_to "Go to Dashboard", dashboard_path, class: "btn btn-primary btn-lg me-2" %>
+            <%= link_to "Manage Subscription", subscription_path, class: "btn btn-outline-secondary" %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

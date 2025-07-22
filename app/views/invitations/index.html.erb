@@ -80,9 +80,11 @@
                                 onclick: "copyToClipboard('#{accept_invitation_url(invitation.token)}'); return false;",
                                 class: "btn btn-outline-secondary btn-sm" %>
                             <!-- Force Accept Button for Testing -->
-                            <%= link_to "Force Accept", accept_invitation_path(invitation.token), 
-                                method: :post, class: "btn btn-outline-success btn-sm",
-                                title: "Force accept this invitation (for testing)" %>
+                            <%= form_with url: accept_invitation_path(invitation.token), method: :post, local: true, style: "display: inline;" do %>
+                              <%= submit_tag "Force Accept", class: "btn btn-outline-success btn-sm",
+                                  title: "Force accept this invitation (for testing)",
+                                  data: { confirm: "Force accept this invitation?" } %>
+                            <% end %>
                           <% end %>
                           <%= link_to "Cancel", [@project, invitation], method: :delete,
                               confirm: "Are you sure you want to cancel this invitation?",
@@ -141,7 +143,6 @@
 <script>
 function copyToClipboard(text) {
   navigator.clipboard.writeText(text).then(function() {
-    // You could add a toast notification here
     alert('Invitation link copied to clipboard!');
   });
 }

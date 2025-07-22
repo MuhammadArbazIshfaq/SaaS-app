@@ -14,9 +14,14 @@
             You've reached your project limit (<%= current_user.organization.projects_limit %>)
           </p>
           <% if current_user.organization.free_plan? %>
-            <small class="text-muted">
-              Upgrade to Premium for unlimited projects
-            </small>
+            <div class="mb-2">
+              <small class="text-muted">
+                Upgrade to Premium for unlimited projects
+              </small>
+            </div>
+            <% if current_user.admin? %>
+              <%= link_to "Upgrade Plan", subscription_path, class: "btn btn-warning btn-sm" %>
+            <% end %>
           <% end %>
         </div>
       <% end %>
@@ -38,6 +43,9 @@
               <span class="badge bg-<%= current_user.organization.free_plan? ? 'secondary' : 'primary' %>">
                 <%= current_user.organization.plan.name %>
               </span>
+              <% if current_user.admin? %>
+                <br><%= link_to "Manage", subscription_path, class: "btn btn-sm btn-outline-secondary mt-1" %>
+              <% end %>
             </div>
             <div class="col-md-3">
               <strong>Projects:</strong><br>
