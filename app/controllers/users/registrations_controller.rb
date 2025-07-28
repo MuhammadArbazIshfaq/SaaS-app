@@ -12,7 +12,22 @@ class Users::RegistrationsController < Devise::RegistrationsController
 
   # Handle account deletion
   def destroy
-    super
+    begin
+      Rails.logger.info "User #{current_user.id} (#{current_user.email}) requesting account deletion"
+      
+      # Use ActsAsTenant.without_tenant to ensure we can delete across tenants
+      ActsAsTenant.without_tenant do
+        super
+      end
+      
+      Rails.logger.info "User account deletion completed successfully"
+    rescue => e
+      Rails.logger.error "Error during user account deletion: #{e.message}"
+      Rails.logger.error e.backtrace.join("\n")
+      
+      # Redirect with error message
+      redirect_to edit_user_registration_path, alert: "There was an error deleting your account. Please try again or contact support."
+    end
   end
 
   private

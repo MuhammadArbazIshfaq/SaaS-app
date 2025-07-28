@@ -10,10 +10,16 @@ class User < ApplicationRecord
   
   # Project management relationships
   has_many :created_projects, class_name: 'Project', foreign_key: 'created_by_id', dependent: :destroy
-  has_many :project_memberships, dependent: :destroy
-  has_many :projects, through: :project_memberships
   has_many :uploaded_artifacts, class_name: 'Artifact', foreign_key: 'uploaded_by_id', dependent: :destroy
   has_many :sent_invitations, class_name: 'Invitation', foreign_key: 'invited_by_id', dependent: :destroy
+  has_many :received_invitations, class_name: 'Invitation', foreign_key: 'email', primary_key: 'email', dependent: :destroy
+  
+  # Project access through organization
+  has_many :projects, -> { distinct }, through: :organization
+  
+  # Add callbacks for safe deletion
+  before_destroy :check_organization_ownership
+  after_destroy :cleanup_organization_if_needed
   
   # Validations
   validates :role, inclusion: { in: %w[admin member] }, allow_nil: true
@@ -79,5 +85,50 @@ class User < ApplicationRecord
     # User is considered invited if they have an organization but it's not their first organization
     # Or if they were created with a role already assigned
     organization.present? && role.present?
+  end
+
+  def check_organization_ownership
+    return unless organization && admin?
+    
+    # Check if this is the only admin in the organization
+    other_admins = organization.users.where(role: 'admin').where.not(id: id)
+    
+    if other_admins.empty?
+      # If there are other members, promote one to admin
+      other_members = organization.users.where(role: 'member').where.not(id: id)
+      
+      if other_members.any?
+        # Promote the first member to admin
+        new_admin = other_members.first
+        new_admin.update!(role: 'admin')
+        Rails.logger.info "Promoted user #{new_admin.email} to admin for organization #{organization.name}"
+      else
+        # No other users, organization will be deleted
+        Rails.logger.info "Organization #{organization.name} will be deleted as user #{email} is the only member"
+      end
+    end
+  end
+
+  def cleanup_organization_if_needed
+    return unless organization
+    
+    # Check if organization has any remaining users
+    if organization.users.count == 0
+      # Cancel Stripe subscription if exists
+      if organization.stripe_subscription_id.present?
+        begin
+          Stripe::Subscription.cancel(organization.stripe_subscription_id)
+          Rails.logger.info "Cancelled Stripe subscription #{organization.stripe_subscription_id}"
+        rescue => e
+          Rails.logger.error "Failed to cancel Stripe subscription: #{e.message}"
+        end
+      end
+      
+      # Delete the organization
+      organization.destroy
+      Rails.logger.info "Deleted orphaned organization #{organization.name}"
+    end
+  rescue => e
+    Rails.logger.error "Error during organization cleanup: #{e.message}"
   end
 end
