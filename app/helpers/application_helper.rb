@@ -45,7 +45,7 @@ module ApplicationHelper
         "⚠️ Your trial has expired! Please upgrade your plan to continue using the service."
       end
     elsif days_left <= 3
-      content_tag :div, class: 'alert alert-warning' do
+      content_tag :div, class: "alert alert-warning" do
         "⏰ Your trial expires in #{days_left} day#{'s' if days_left != 1}. Upgrade now to avoid service interruption."
       end
     end

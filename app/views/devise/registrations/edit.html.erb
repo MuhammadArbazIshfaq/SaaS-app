@@ -1,37 +1,152 @@
-<h1><%= t('.title', resource: resource_name.to_s.humanize) %></h1>
-
-<%= form_for(resource, as: resource_name, url: registration_path(resource_name), html: { method: :put }) do |f| %>
-  <%= bootstrap_devise_error_messages! %>
-
-  <div class="form-group">
-    <%= f.label :email %>
-    <%= f.email_field :email, autofocus: true, autocomplete: 'email', class: 'form-control' %>
-  </div>
-
-  <div class="form-group">
-    <%= f.label :password %>
-    <%= f.password_field :password, autocomplete: 'new-password', class: 'form-control' %>
-
-    <small class="form-text text-muted"><%= t('.leave_blank_if_you_don_t_want_to_change_it') %></small>
-  </div>
-
-  <div class="form-group">
-    <%= f.label :password_confirmation %>
-    <%= f.password_field :password_confirmation, autocomplete: 'new-password', class: 'form-control'  %>
-  </div>
-
-  <div class="form-group">
-    <%= f.label :current_password %>
-    <%= f.password_field :current_password, autocomplete: 'current-password', class: 'form-control' %>
-
-    <small class="form-text text-muted"><%= t('.we_need_your_current_password_to_confirm_your_changes') %></small>
-  </div>
-
-  <div class="form-group">
-    <%= f.submit t('.update'), class: 'btn btn-primary' %>
-  </div>
+<% content_for :head do %>
+  <%= stylesheet_link_tag 'profile_edit', 'data-turbo-track': 'reload' %>
+  <%= javascript_include_tag 'profile_edit', 'data-turbo-track': 'reload' %>
 <% end %>
 
-<p><%= t('.unhappy') %>? <%= link_to t('.cancel_my_account'), registration_path(resource_name), data: { confirm: t('.are_you_sure') }, method: :delete %>.</p>
+<div class="profile-edit-container">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-8 col-lg-6">
+        <div class="card shadow-lg border-0 profile-card">
+          <div class="card-header bg-white border-0 text-center py-4">
+            <div class="profile-avatar mx-auto mb-3">
+              <i class="bi bi-person-circle"></i>
+            </div>
+            <h2 class="card-title mb-1 text-dark">Edit Your Profile</h2>
+            <p class="text-muted mb-0">Update your account information and preferences</p>
+          </div>
+          
+          <div class="card-body px-5 py-4">
+            <%= form_for(resource, as: resource_name, url: registration_path(resource_name), html: { method: :put, class: "profile-form" }) do |f| %>
+              <% if resource.errors.any? %>
+                <div class="alert alert-danger alert-dismissible fade show profile-alert" role="alert">
+                  <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                  <strong>Please fix the following errors:</strong>
+                  <ul class="mb-0 mt-2">
+                    <% resource.errors.full_messages.each do |message| %>
+                      <li><%= message %></li>
+                    <% end %>
+                  </ul>
+                  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+              <% end %>
 
-<%= link_to t('.back'), :back %>
+              <!-- Personal Information Section -->
+              <div class="form-section mb-4">
+                <h5 class="section-title mb-3">
+                  <i class="bi bi-person-badge me-2"></i>Personal Information
+                </h5>
+                
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <div class="form-floating">
+                      <%= f.text_field :first_name, class: 'form-control form-input', placeholder: 'First Name', value: resource.first_name %>
+                      <%= f.label :first_name, 'First Name', class: 'form-label-floating' %>
+                    </div>
+                  </div>
+                  
+                  <div class="col-md-6 mb-3">
+                    <div class="form-floating">
+                      <%= f.text_field :last_name, class: 'form-control form-input', placeholder: 'Last Name', value: resource.last_name %>
+                      <%= f.label :last_name, 'Last Name', class: 'form-label-floating' %>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <div class="form-floating">
+                    <%= f.email_field :email, autofocus: true, autocomplete: 'email', class: 'form-control form-input', placeholder: 'Email Address' %>
+                    <%= f.label :email, 'Email Address', class: 'form-label-floating' %>
+                  </div>
+                  <div class="profile-form-text text-muted">
+                    <i class="bi bi-info-circle me-1"></i>
+                    This will be your login email address
+                  </div>
+                </div>
+              </div>
+
+              <!-- Security Section -->
+              <div class="form-section mb-4">
+                <h5 class="section-title mb-3">
+                  <i class="bi bi-shield-lock me-2"></i>Security Settings
+                </h5>
+                
+                <div class="mb-3">
+                  <div class="form-floating">
+                    <%= f.password_field :password, autocomplete: 'new-password', class: 'form-control form-input', placeholder: 'New Password' %>
+                    <%= f.label :password, 'New Password', class: 'form-label-floating' %>
+                  </div>
+                  <div class="profile-form-text text-muted">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Leave blank if you don't want to change your password
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <div class="form-floating">
+                    <%= f.password_field :password_confirmation, autocomplete: 'new-password', class: 'form-control form-input', placeholder: 'Confirm New Password' %>
+                    <%= f.label :password_confirmation, 'Confirm New Password', class: 'form-label-floating' %>
+                  </div>
+                </div>
+
+                <div class="mb-4">
+                  <div class="form-floating">
+                    <%= f.password_field :current_password, autocomplete: 'current-password', class: 'form-control form-input', placeholder: 'Current Password', required: true %>
+                    <%= f.label :current_password, 'Current Password', class: 'form-label-floating' %>
+                  </div>
+                  <div class="profile-form-text text-warning">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    We need your current password to confirm these changes
+                  </div>
+                </div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="d-grid gap-2 mb-3">
+                <%= f.submit 'Update Profile', class: 'btn btn-primary btn-lg update-btn', data: { disable_with: 'Updating...' } %>
+              </div>
+              
+              <div class="text-center">
+                <small class="text-muted">
+                  Last updated: <%= resource.updated_at.strftime("%B %d, %Y at %I:%M %p") if resource.updated_at %>
+                </small>
+              </div>
+            <% end %>
+          </div>
+          
+          <!-- Danger Zone -->
+          <div class="card-footer bg-light border-0 px-5 py-4">
+            <div class="danger-zone">
+              <h6 class="text-danger mb-3">
+                <i class="bi bi-exclamation-triangle me-2"></i>Danger Zone
+              </h6>
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <p class="mb-1 text-dark">Delete Account</p>
+                  <small class="text-muted">This action cannot be undone</small>
+                </div>
+                <%= button_to 'Delete Account', registration_path(resource_name), 
+                    method: :delete,
+                    data: { 
+                      confirm: 'Are you sure? This will permanently delete your account and all associated data? This action cannot be undone!',
+                      bs_toggle: 'tooltip',
+                      bs_placement: 'top',
+                      bs_title: 'Permanently delete your account'
+                    }, 
+                    class: 'btn btn-outline-danger btn-sm',
+                    form: { style: 'display: inline;' } %>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Back Navigation -->
+        <div class="text-center mt-4">
+          <%= link_to dashboard_path, class: 'btn back-btn' do %>
+            <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

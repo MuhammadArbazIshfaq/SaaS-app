@@ -22,6 +22,11 @@ class Organizations::RegistrationsController < ApplicationController
           @organization = create_organization!
           Rails.logger.debug "Organization created: #{@organization.inspect}"
           
+          # Handle payment for Premium plan
+          if @organization.plan.name == 'Premium' && params[:payment_method_id].present?
+            process_premium_payment!(@organization)
+          end
+          
           # Set user as admin and assign to organization
           @user.role = 'admin'
           @user.organization = @organization
@@ -38,13 +43,20 @@ class Organizations::RegistrationsController < ApplicationController
             # Send confirmation email if confirmable is enabled
             @user.send_confirmation_instructions if @user.respond_to?(:send_confirmation_instructions)
             
-            redirect_to root_path, notice: 'Welcome! Your organization has been created successfully.'
+            success_message = @organization.plan.name == 'Premium' ? 
+              'Welcome! Your organization has been created and your Premium subscription is active.' :
+              'Welcome! Your organization has been created successfully.'
+            
+            redirect_to root_path, notice: success_message
           else
             # If user save fails, raise error to rollback transaction
             raise ActiveRecord::RecordInvalid.new(@user)
           end
         end
       end
+    rescue Stripe::StripeError => e
+      flash.now[:alert] = "Payment error: #{e.message}"
+      render :new
     rescue ActiveRecord::RecordInvalid => e
       # Handle validation errors
       flash.now[:alert] = 'There was a problem creating your account. Please check the errors below.'
@@ -128,5 +140,85 @@ class Organizations::RegistrationsController < ApplicationController
     end
 
     subdomain
+  end
+
+  def process_premium_payment!(organization)
+    payment_method_id = params[:payment_method_id]
+    
+    # Create or get existing product and price
+    product = find_or_create_stripe_product
+    price = find_or_create_stripe_price(product.id)
+    
+    # Create Stripe customer
+    customer = Stripe::Customer.create({
+      email: @user.email,
+      name: organization.name,
+      payment_method: payment_method_id,
+      invoice_settings: {
+        default_payment_method: payment_method_id,
+      },
+    })
+    
+    # Attach payment method to customer
+    Stripe::PaymentMethod.attach(payment_method_id, {
+      customer: customer.id,
+    })
+    
+    # Create subscription with immediate payment attempt
+    subscription = Stripe::Subscription.create({
+      customer: customer.id,
+      items: [{ price: price.id }],
+      default_payment_method: payment_method_id,
+      expand: ['latest_invoice'],
+    })
+    
+    # Update organization with Stripe IDs
+    organization.update!(
+      stripe_customer_id: customer.id,
+      stripe_subscription_id: subscription.id,
+      status: 'active'
+    )
+    
+    # Log subscription creation
+    Rails.logger.info "Premium subscription created for organization #{organization.id} with status: #{subscription.status}"
+    
+    # If subscription is not active, log for investigation but don't fail
+    unless subscription.status == 'active'
+      Rails.logger.warn "Subscription status is #{subscription.status}, expected 'active' for #{subscription.id}"
+    end
+  end
+  
+  def find_or_create_stripe_product
+    # Try to find existing product
+    products = Stripe::Product.list(limit: 100)
+    existing_product = products.data.find { |p| p.name == 'Premium Plan' }
+    
+    return existing_product if existing_product
+    
+    # Create new product if it doesn't exist
+    Stripe::Product.create({
+      name: 'Premium Plan',
+      description: 'Unlimited projects for your organization'
+    })
+  end
+  
+  def find_or_create_stripe_price(product_id)
+    # Try to find existing price for this product
+    prices = Stripe::Price.list(product: product_id, limit: 100)
+    existing_price = prices.data.find do |p| 
+      p.unit_amount == 2999 && 
+      p.currency == 'usd' && 
+      p.recurring&.interval == 'month'
+    end
+    
+    return existing_price if existing_price
+    
+    # Create new price if it doesn't exist
+    Stripe::Price.create({
+      unit_amount: 2999, # $29.99
+      currency: 'usd',
+      recurring: { interval: 'month' },
+      product: product_id
+    })
   end
 end

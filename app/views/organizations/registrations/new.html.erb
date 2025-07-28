@@ -72,13 +72,14 @@
               <div class="row">
                 <% @plans.each do |plan| %>
                   <div class="col-md-6 mb-3">
-                    <div class="card h-100 <%= 'border-primary' if plan.name == 'Free' %>">
+                    <div class="card h-100 <%= 'border-primary' if plan.name == 'Free' %>" id="plan-card-<%= plan.id %>">
                       <div class="card-body d-flex flex-column">
                         <div class="form-check">
                           <%= radio_button_tag :plan_id, plan.id, 
                               (plan.name == 'Free'), 
-                              class: "form-check-input",
-                              id: "plan_#{plan.id}" %>
+                              class: "form-check-input plan-radio",
+                              id: "plan_#{plan.id}",
+                              data: { plan_name: plan.name } %>
                           <%= label_tag "plan_#{plan.id}", class: "form-check-label w-100" do %>
                             <h5 class="card-title mb-1"><%= plan.name %></h5>
                             <h6 class="card-subtitle mb-2 text-muted">
@@ -149,6 +150,26 @@
                   placeholder: "Confirm your password", required: true %>
             </div>
 
+            <!-- Payment Information (for Premium plan) -->
+            <div id="payment-section" class="col-12 mt-4" style="display: none;">
+              <h6 class="text-primary">Payment Information</h6>
+              <hr class="mt-1">
+              
+              <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Secure Payment:</strong> Your payment information is processed securely by Stripe. We don't store your card details.
+              </div>
+              
+              <div class="mb-3">
+                <label for="card-element" class="form-label">Credit or Debit Card</label>
+                <div id="card-element" class="form-control" style="height: 40px; padding: 10px;">
+                  <!-- Stripe Elements will create form elements here -->
+                </div>
+                <!-- Used to display form errors -->
+                <div id="card-errors" class="text-danger mt-2" role="alert"></div>
+              </div>
+            </div>
+
             <!-- Terms and Submit -->
             <div class="col-12 mt-4">
               <div class="form-check">
@@ -163,7 +184,14 @@
             <div class="col-12">
               <%= f.submit "Create Organization Account", 
                   class: "btn btn-primary btn-lg w-100",
+                  id: "submit-button",
                   data: { disable_with: "Creating Account..." } %>
+              <div id="loading-spinner" class="text-center mt-2" style="display: none;">
+                <div class="spinner-border spinner-border-sm me-2" role="status">
+                  <span class="visually-hidden">Loading...</span>
+                </div>
+                <span>Processing payment...</span>
+              </div>
             </div>
           <% end %>
 
@@ -194,3 +222,187 @@
     background-color: rgba(13, 110, 253, 0.05);
   }
 </style>
+
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+  // Organization Registration with Stripe Payment Integration
+  window.stripePublishableKey = '<%= Rails.configuration.stripe[:publishable_key] %>';
+  
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log("Organization registration loaded");
+    
+    // Check if we're on the registration page
+    const form = document.querySelector('form');
+    const paymentSection = document.getElementById('payment-section');
+    const planRadios = document.querySelectorAll('.plan-radio');
+    
+    if (!form || !paymentSection || planRadios.length === 0) {
+      console.log("Not on organization registration page");
+      return;
+    }
+    
+    // Initialize Stripe
+    if (!window.stripePublishableKey) {
+      console.error("Stripe publishable key not found!");
+      return;
+    }
+    
+    const stripe = Stripe(window.stripePublishableKey);
+    const elements = stripe.elements();
+    let cardElement = null;
+    let selectedPlan = "Free";
+
+    // Get form elements
+    const submitButton = document.getElementById('submit-button');
+    const loadingSpinner = document.getElementById('loading-spinner');
+
+    // Handle plan selection
+    planRadios.forEach((radio) => {
+      radio.addEventListener('change', function() {
+        selectedPlan = this.dataset.planName;
+        console.log("Plan selected:", selectedPlan);
+
+        // Update plan card styling
+        document.querySelectorAll('[id^="plan-card-"]').forEach((card) => {
+          card.classList.remove('border-primary');
+        });
+
+        if (this.checked) {
+          const cardElement = document.getElementById(`plan-card-${this.value}`);
+          if (cardElement) {
+            cardElement.classList.add('border-primary');
+          }
+        }
+
+        // Show/hide payment section based on plan
+        if (selectedPlan === 'Premium') {
+          console.log("Showing payment section");
+          paymentSection.style.display = 'block';
+          initializeStripeElements();
+          if (submitButton) {
+            submitButton.textContent = 'Create Account & Subscribe ($29.99/month)';
+          }
+        } else {
+          console.log("Hiding payment section");
+          paymentSection.style.display = 'none';
+          if (submitButton) {
+            submitButton.textContent = 'Create Organization Account';
+          }
+          if (cardElement) {
+            cardElement.destroy();
+            cardElement = null;
+          }
+        }
+      });
+    });
+
+    // Initialize Stripe Elements for payment
+    function initializeStripeElements() {
+      console.log("Initializing Stripe elements");
+      if (cardElement) return; // Already initialized
+
+      cardElement = elements.create('card', {
+        style: {
+          base: {
+            fontSize: '16px',
+            color: '#424770',
+            '::placeholder': {
+              color: '#aab7c4',
+            },
+          },
+          invalid: {
+            color: '#9e2146',
+          },
+        },
+      });
+
+      try {
+        cardElement.mount('#card-element');
+        console.log("Card element mounted successfully");
+      } catch (error) {
+        console.error("Error mounting card element:", error);
+      }
+
+      // Handle real-time validation errors
+      cardElement.on('change', function(event) {
+        const displayError = document.getElementById('card-errors');
+        if (event.error) {
+          if (displayError) displayError.textContent = event.error.message;
+          console.log("Card validation error:", event.error.message);
+        } else {
+          if (displayError) displayError.textContent = '';
+          console.log("Card validation OK");
+        }
+      });
+    }
+
+    // Handle form submission
+    if (form) {
+      form.addEventListener('submit', async function(event) {
+        console.log("Form submitted, selectedPlan:", selectedPlan);
+        
+        if (selectedPlan !== 'Premium') {
+          console.log("Free plan selected, submitting normally");
+          return true;
+        }
+
+        // For premium plan, handle payment first
+        event.preventDefault();
+        console.log("Premium plan selected, processing payment");
+
+        // Show loading state
+        if (submitButton) {
+          submitButton.disabled = true;
+        }
+        if (loadingSpinner) {
+          loadingSpinner.style.display = 'block';
+        }
+
+        try {
+          if (!cardElement) {
+            throw new Error('Card element not initialized');
+          }
+
+          // Create payment method
+          const {error, paymentMethod} = await stripe.createPaymentMethod({
+            type: 'card',
+            card: cardElement,
+          });
+
+          if (error) {
+            console.error("Payment method creation error:", error);
+            const errorElement = document.getElementById('card-errors');
+            if (errorElement) errorElement.textContent = error.message;
+
+            // Reset button state
+            if (submitButton) submitButton.disabled = false;
+            if (loadingSpinner) loadingSpinner.style.display = 'none';
+            return;
+          }
+
+          console.log("Payment method created:", paymentMethod.id);
+
+          // Add payment method ID to form
+          const paymentMethodInput = document.createElement('input');
+          paymentMethodInput.type = 'hidden';
+          paymentMethodInput.name = 'payment_method_id';
+          paymentMethodInput.value = paymentMethod.id;
+          form.appendChild(paymentMethodInput);
+
+          console.log("Submitting form with payment method");
+          form.submit();
+        } catch (error) {
+          console.error("Error:", error);
+          const errorElement = document.getElementById('card-errors');
+          if (errorElement) errorElement.textContent = 'An unexpected error occurred.';
+
+          // Reset button state
+          if (submitButton) submitButton.disabled = false;
+          if (loadingSpinner) loadingSpinner.style.display = 'none';
+        }
+      });
+    }
+    
+    console.log("Organization registration setup complete");
+  });
+</script>
