@@ -63,20 +63,30 @@
                     <form id="payment-form">
                       <div class="mb-3">
                         <label for="card-element" class="form-label">Credit or Debit Card</label>
-                        <div id="card-element" class="form-control" style="height: 40px; padding: 10px;">
+                        <div id="card-element" class="form-control" style="height: 40px; padding: 10px; border: 1px solid #ced4da; border-radius: 0.375rem; background-color: white;">
                           <!-- Stripe Elements will create form elements here -->
                         </div>
                         <!-- Used to display form errors -->
-                        <div id="card-errors" class="text-danger mt-2" role="alert"></div>
+                        <div id="card-errors" class="mt-2" role="alert"></div>
                       </div>
                       
                       <div class="text-center">
                         <button id="submit-payment" class="btn btn-primary btn-lg" type="submit">
-                          <span id="button-text">Subscribe Now</span>
+                          <span id="button-text">
+                            <i class="bi bi-credit-card me-2"></i>
+                            Subscribe Now
+                          </span>
                           <div id="spinner" class="spinner-border spinner-border-sm ms-2" role="status" style="display: none;">
                             <span class="visually-hidden">Loading...</span>
                           </div>
                         </button>
+                      </div>
+                      
+                      <div class="text-center mt-2">
+                        <small class="text-muted">
+                          <i class="bi bi-shield-check me-1"></i>
+                          Secure payment powered by Stripe
+                        </small>
                       </div>
                     </form>
                   </div>
@@ -129,4 +139,177 @@
   window.stripePublishableKey = '<%= Rails.configuration.stripe[:publishable_key] %>';
   window.createSubscriptionPath = '<%= create_subscription_path %>';
   window.upgradeSuccessPath = '<%= upgrade_success_path %>';
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Only initialize if payment form exists
+  const paymentForm = document.getElementById('payment-form');
+  if (!paymentForm) return;
+
+  console.log("Initializing Stripe subscription upgrade...");
+  
+  // Check if Stripe is available
+  if (typeof Stripe === 'undefined') {
+    console.error('Stripe.js not loaded');
+    return;
+  }
+
+  if (!window.stripePublishableKey) {
+    console.error('Stripe publishable key not found');
+    return;
+  }
+
+  // Initialize Stripe
+  const stripe = Stripe(window.stripePublishableKey);
+  const elements = stripe.elements();
+
+  // Create card element with better styling
+  const cardElement = elements.create('card', {
+    style: {
+      base: {
+        fontSize: '16px',
+        color: '#424770',
+        fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
+        fontSmoothing: 'antialiased',
+        '::placeholder': {
+          color: '#aab7c4',
+        },
+      },
+      invalid: {
+        color: '#9e2146',
+      },
+    },
+  });
+
+  // Mount card element
+  cardElement.mount('#card-element');
+
+  // Handle real-time validation errors from the card Element
+  cardElement.on('change', function(event) {
+    const displayError = document.getElementById('card-errors');
+    if (event.error) {
+      displayError.textContent = event.error.message;
+      displayError.className = 'text-danger mt-2';
+    } else {
+      displayError.textContent = '';
+      displayError.className = 'mt-2';
+    }
+  });
+
+  // Handle form submission
+  const submitButton = document.getElementById('submit-payment');
+  const buttonText = document.getElementById('button-text');
+  const spinner = document.getElementById('spinner');
+
+  paymentForm.addEventListener('submit', async function(event) {
+    event.preventDefault();
+    console.log("Form submitted, processing payment...");
+
+    // Disable submit button and show loading
+    submitButton.disabled = true;
+    buttonText.innerHTML = '<i class="bi bi-credit-card me-2"></i>Processing...';
+    spinner.style.display = 'inline-block';
+
+    try {
+      console.log("Creating payment method...");
+      // Create payment method
+      const {error, paymentMethod} = await stripe.createPaymentMethod({
+        type: 'card',
+        card: cardElement,
+        billing_details: {
+          email: '<%= current_user.email %>',
+          name: '<%= current_organization.name %>',
+        },
+      });
+
+      if (error) {
+        console.error('Payment method creation error:', error);
+        showError(error.message);
+        resetButton();
+        return;
+      }
+
+      console.log('Payment method created:', paymentMethod.id);
+
+      console.log("Sending payment to server...");
+      // Send payment method to server
+      const response = await fetch(window.createSubscriptionPath, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content,
+        },
+        body: JSON.stringify({
+          payment_method_id: paymentMethod.id,
+        }),
+      });
+
+      console.log("Response status:", response.status);
+      const result = await response.json();
+      console.log('Server response:', result);
+
+      if (response.ok) {
+        if (result.client_secret) {
+          console.log("Payment requires confirmation...");
+          // Payment requires confirmation
+          const {error: confirmError} = await stripe.confirmCardPayment(result.client_secret);
+          
+          if (confirmError) {
+            console.error('Payment confirmation error:', confirmError);
+            showError(confirmError.message);
+            resetButton();
+          } else {
+            // Payment successful
+            console.log('Payment confirmed successfully');
+            showSuccess('Payment successful! Redirecting...');
+            setTimeout(() => {
+              window.location.href = window.upgradeSuccessPath;
+            }, 1500);
+          }
+        } else if (result.success) {
+          // Payment successful immediately
+          console.log('Payment successful immediately');
+          showSuccess('Upgrade successful! Redirecting...');
+          setTimeout(() => {
+            window.location.href = window.upgradeSuccessPath;
+          }, 1500);
+        } else {
+          console.error('Unexpected success response:', result);
+          showError('Unexpected response from server');
+          resetButton();
+        }
+      } else {
+        console.error('Server error:', result);
+        showError(result.error || 'Server error occurred');
+        resetButton();
+      }
+
+    } catch (error) {
+      console.error('Unexpected error:', error);
+      showError('An unexpected error occurred. Please try again.');
+      resetButton();
+    }
+  });
+
+  function showError(message) {
+    const errorElement = document.getElementById('card-errors');
+    errorElement.textContent = message;
+    errorElement.className = 'text-danger mt-2';
+  }
+
+  function showSuccess(message) {
+    const errorElement = document.getElementById('card-errors');
+    errorElement.textContent = message;
+    errorElement.className = 'text-success mt-2';
+  }
+
+  function resetButton() {
+    submitButton.disabled = false;
+    buttonText.innerHTML = '<i class="bi bi-credit-card me-2"></i>Subscribe Now';
+    spinner.style.display = 'none';
+  }
+
+  console.log("Stripe subscription upgrade initialized successfully");
+});
 </script>

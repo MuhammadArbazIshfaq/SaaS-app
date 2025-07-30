@@ -44,7 +44,7 @@
             </li>
             <% if user_signed_in? %>
               <li class="nav-item">
-                <%= link_to "Dashboard", "#", class: "nav-link" %>
+                <%= link_to "Dashboard", dashboard_path, class: "nav-link" %>
               </li>
             <% end %>
           </ul>
@@ -58,7 +58,7 @@
                     <small class="text-muted">
                       <%= current_user.organization.name %>
                       <% if current_user.organization.plan %>
-                        | <span class="badge bg-<%= current_user.organization.trial? ? 'warning' : 'success' %> text-dark">
+                        | <span class="badge bg-<%= current_user.organization.plan.name == 'Free' ? 'secondary' : 'success' %>">
                           <%= current_user.organization.plan.name %>
                         </span>
                       <% end %>
@@ -70,10 +70,10 @@
               <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                   <%= current_user.email %>
-                  <% if current_user.organization&.trial_expired? %>
-                    <span class="badge bg-danger ms-1">Trial Expired</span>
-                  <% elsif current_user.organization&.trial? %>
-                    <span class="badge bg-warning text-dark ms-1">Trial</span>
+                  <% if current_user.organization&.plan&.name == 'Free' %>
+                    <span class="badge bg-secondary ms-1">Free</span>
+                  <% elsif current_user.organization&.plan&.name == 'Premium' %>
+                    <span class="badge bg-success ms-1">Premium</span>
                   <% end %>
                 </a>
                 <ul class="dropdown-menu">
@@ -85,10 +85,10 @@
                     </li>
                     <li><%= link_to "Organization Settings", "#", class: "dropdown-item" %></li>
                     <li><%= link_to "Team Management", "#", class: "dropdown-item" %></li>
-                    <% if current_user.organization.trial? %>
-                      <li><%= link_to "Upgrade Plan", "#", class: "dropdown-item text-warning" %></li>
+                    <% if current_user.organization.plan&.name == 'Free' %>
+                      <li><%= link_to "Upgrade Plan", subscription_path, class: "dropdown-item text-warning" %></li>
                     <% else %>
-                      <li><%= link_to "Manage Subscription", "#", class: "dropdown-item" %></li>
+                      <li><%= link_to "Manage Subscription", subscription_path, class: "dropdown-item" %></li>
                     <% end %>
                     <li><hr class="dropdown-divider"></li>
                   <% end %>

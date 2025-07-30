@@ -11,8 +11,25 @@ class SubscriptionsController < ApplicationController
   end
   
   def create
-    payment_method_id = params[:payment_method_id]
+    # Parse JSON request
+    request_data = request.content_type&.include?('application/json') ? 
+                   JSON.parse(request.body.read) : params
+                   
+    payment_method_id = request_data['payment_method_id'] || params[:payment_method_id]
     premium_plan = Plan.find_by(name: 'Premium')
+    
+    Rails.logger.info "Processing subscription upgrade for user #{current_user.email} with payment method #{payment_method_id}"
+    
+    # Validate inputs
+    if payment_method_id.blank?
+      render json: { error: 'Payment method is required' }, status: 422
+      return
+    end
+    
+    if current_organization.plan.name == 'Premium'
+      render json: { error: 'Organization is already on Premium plan' }, status: 422
+      return
+    end
     
     begin
       # Create or get existing product
@@ -36,16 +53,15 @@ class SubscriptionsController < ApplicationController
         customer: customer.id,
       })
       
-      # Create subscription
+      # Create subscription with immediate payment attempt
       subscription = Stripe::Subscription.create({
         customer: customer.id,
         items: [{ price: price.id }],
-        payment_behavior: 'default_incomplete',
-        payment_settings: {
-          save_default_payment_method: 'on_subscription'
-        },
+        default_payment_method: payment_method_id,
         expand: ['latest_invoice.payment_intent'],
       })
+      
+      Rails.logger.info "Created subscription: #{subscription.id}, status: #{subscription.status}"
       
       # Update organization with Stripe IDs and plan
       current_organization.update!(
@@ -57,20 +73,39 @@ class SubscriptionsController < ApplicationController
       # Handle the subscription status
       case subscription.status
       when 'incomplete'
-        # Payment requires confirmation
+        # Payment requires user action
         if subscription.latest_invoice&.payment_intent
           render json: {
             client_secret: subscription.latest_invoice.payment_intent.client_secret,
             subscription_id: subscription.id
           }
         else
-          render json: { error: 'Payment setup incomplete' }, status: 422
+          # Try to pay the invoice immediately
+          begin
+            latest_invoice = subscription.latest_invoice
+            if latest_invoice
+              paid_invoice = Stripe::Invoice.pay(latest_invoice.id)
+              if paid_invoice.status == 'paid'
+                render json: { success: true }
+              else
+                render json: { error: 'Payment could not be processed' }, status: 422
+              end
+            else
+              render json: { error: 'No invoice found' }, status: 422
+            end
+          rescue Stripe::StripeError => payment_error
+            Rails.logger.error "Invoice payment error: #{payment_error.message}"
+            render json: { error: "Payment failed: #{payment_error.message}" }, status: 422
+          end
         end
       when 'active'
-        # Payment successful immediately
+        # Payment successful
         render json: { success: true }
+      when 'past_due'
+        render json: { error: 'Payment method declined. Please try a different card.' }, status: 422
       else
-        render json: { error: "Subscription status: #{subscription.status}" }, status: 422
+        Rails.logger.warn "Unexpected subscription status: #{subscription.status}"
+        render json: { error: "Subscription could not be activated. Status: #{subscription.status}" }, status: 422
       end
       
     rescue Stripe::StripeError => e
