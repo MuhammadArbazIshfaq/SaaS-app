@@ -202,11 +202,6 @@ GEM
     parser (3.3.8.0)
       ast (~> 2.4.1)
       racc
-    postmark (1.25.1)
-      json
-    postmark-rails (0.22.1)
-      actionmailer (>= 3.0.0)
-      postmark (>= 1.21.3, < 2.0)
     pp (0.6.2)
       prettyprint
     prettyprint (0.2.0)
@@ -301,13 +296,13 @@ GEM
       rubocop-performance (>= 1.24)
       rubocop-rails (>= 2.30)
     ruby-progressbar (1.13.0)
-    rubyzip (2.4.1)
+    rubyzip (3.0.1)
     securerandom (0.4.1)
-    selenium-webdriver (4.34.0)
+    selenium-webdriver (4.35.0)
       base64 (~> 0.2)
       logger (~> 1.4)
       rexml (~> 3.2, >= 3.2.5)
-      rubyzip (>= 1.2.2, < 3.0)
+      rubyzip (>= 1.2.2, < 4.0)
       websocket (~> 1.0)
     solid_cable (3.0.11)
       actioncable (>= 7.2)
@@ -395,7 +390,6 @@ DEPENDENCIES
   importmap-rails
   jbuilder
   kamal
-  postmark-rails
   propshaft
   puma (>= 5.0)
   rails (~> 8.0.2)
